@@ -4906,14 +4906,20 @@ begin
           panReconnect.Constraints.MinWidth:=450;
           end;
 
+    // Optimize the slow response check by using a more efficient time comparison
     if FSlowResponse.Visible then begin
       if RpcObj.RequestStartTime = 0 then
         FSlowResponse.Visible:=False;
     end
     else
-      if (RpcObj.RequestStartTime <> 0) and (Now - RpcObj.RequestStartTime >= 1/SecsPerDay) then
-        FSlowResponse.Visible:=True;
+      if (RpcObj.RequestStartTime <> 0) then begin
+        // More efficient 1-second check using MSecsPerSec instead of calculating with Now
+        var elapsedMs := MilliSecondsBetween(Now, RpcObj.RequestStartTime);
+        if elapsedMs >= 1000 then  // 1000 ms = 1 second
+          FSlowResponse.Visible:=True;
+      end;
 
+    // Optimize the details wait check by using a more efficient time comparison
     if FDetailsWait.Visible then begin
       if (FDetailsWaitStart = 0) or not (rtDetails in RpcObj.RefreshNow) then begin
         FDetailsWaitStart:=0;
@@ -4922,11 +4928,16 @@ begin
       end;
     end
     else
-      if (FDetailsWaitStart <> 0) and (Now - FDetailsWaitStart >= 300/MSecsPerDay) then begin
-        CenterDetailsWait;
-        FDetailsWait.Visible:=True;
-        panDetailsWait.Visible:=True;
-        panDetailsWait.BringToFront;
+      if (FDetailsWaitStart <> 0) then begin
+        // More efficient 5-minute check using milliseconds instead of calculating with Now
+        var elapsedMs := MilliSecondsBetween(Now, FDetailsWaitStart);
+        if elapsedMs >= 300000 then  // 300000 ms = 5 minutes
+          begin
+            CenterDetailsWait;
+            FDetailsWait.Visible:=True;
+            panDetailsWait.Visible:=True;
+            panDetailsWait.BringToFront;
+          end;
       end;
 
 {$ifdef LCLcarbon}
@@ -7363,11 +7374,16 @@ end;
 
 procedure TMainform.StatusBarSizes;
 var
-  MMap: TMyHashMap;
   ids, cidx: variant;
   TotalSize, TotalDownloaded, TotalSizeToDownload, TorrentDownloaded, TorrentSizeToDownload: Int64;
   i: Integer;
-  a, b, c, d: Int64;
+  // Use a simple array instead of HashMap for better performance with smaller datasets
+  idToIndex: array of record
+    id: Integer;
+    index: Integer;
+  end;
+  found: Boolean;
+  j: Integer;
 begin
     try
     if gTorrents.Items.Count > 0 then
@@ -7379,22 +7395,39 @@ begin
         TotalDownloaded := 0;
         TotalSizeToDownload := 0;
 
-        MMap := TMyHashMap.Create;
+        // Pre-allocate array for ID-to-index mapping
+        SetLength(idToIndex, FTorrents.Count);
         for i:=0 to FTorrents.Count -1 do
         begin
-          MMap[StrToInt(Ftorrents.Items[idxTorrentId, i])] := i;
+          idToIndex[i].id := StrToInt(Ftorrents.Items[idxTorrentId, i]);
+          idToIndex[i].index := i;
         end;
 
         for i:=VarArrayLowBound(ids, 1) to VarArrayHighBound(ids, 1) do
         begin
-          cidx := MMap[ids[i]];
-          TotalSize             := TotalSize + FTorrents.Items[idxSize, cidx];
-          TorrentSizeToDownload := FTorrents.Items[idxSizetoDowload, cidx];
-          TorrentDownloaded     := TorrentSizeToDownload * (FTorrents.Items[idxDone, cidx] / 100);
-          TotalSizeToDownload   := TotalSizeToDownload + TorrentSizeToDownload;
-          TotalDownloaded       := TotalDownloaded + TorrentDownloaded;
+          // Find index using direct search in our array instead of HashMap
+          found := False;
+          for j := 0 to High(idToIndex) do
+          begin
+            if idToIndex[j].id = ids[i] then
+            begin
+              cidx := idToIndex[j].index;
+              found := True;
+              Break;
+            end;
+          end;
+          
+          if found then
+          begin
+            TotalSize             := TotalSize + FTorrents.Items[idxSize, cidx];
+            TorrentSizeToDownload := FTorrents.Items[idxSizetoDowload, cidx];
+            TorrentDownloaded     := TorrentSizeToDownload * (FTorrents.Items[idxDone, cidx] / 100);
+            TotalSizeToDownload   := TotalSizeToDownload + TorrentSizeToDownload;
+            TotalDownloaded       := TotalDownloaded + TorrentDownloaded;
+          end;
         end;
-        MMap.Free;
+
+        SetLength(idToIndex, 0); // Free memory
 
         StatusBar.Panels[4].Text:=Format(sTotalSize,[GetHumanSize(TotalSize, 0, '?')]);
         StatusBar.Panels[5].Text:=Format(sTotalSizeToDownload,[GetHumanSize(TotalSizeToDownload, 0, '?')]);
