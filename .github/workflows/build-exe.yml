@@ -1,33 +1,31 @@
-name: Build Windows Binary
+name: Build transGUI exe
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v4
 
-    - name: Install Lazarus
+    - name: Install FPC via choco
       run: |
-        Invoke-WebRequest -Uri "https://sourceforge.net/projects/lazarus/files/Lazarus%20Windows%2064%20bits/Lazarus%203.6/FPCSetup360.exe/download" -OutFile "FPCSetup.exe"
-        Start-Process -FilePath "FPCSetup.exe" -ArgumentList "/VERYSILENT", "/NORESTART" -Wait
-        Invoke-WebRequest -Uri "https://sourceforge.net/projects/lazarus/files/Lazarus%20Windows%2064%20bits/Lazarus%203.6/lazarus-3.6-fpc-3.2.2-win64.exe/download" -OutFile "LazarusSetup.exe"
-        Start-Process -FilePath "LazarusSetup.exe" -ArgumentList "/VERYSILENT", "/NORESTART" -Wait
+        choco install fpc -y
 
-    - name: Compile Project
+    - name: Add FPC to PATH
+      run: echo \"C:\\Program Files\\Lazarus\" >> $env:GITHUB_PATH
+
+    - name: Install lazarus
       run: |
-        $env:Path += ";C:\Lazarus"
-        lazbuild --build-mode=release --widgetset=win32 transgui.lpi
+        choco install lazarus -y
 
-    - name: Upload Binary
+    - name: Compile transGUI
+      run: |
+        lazbuild main.pas
+
+    - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
-        name: windows-binary
-        path: ./*.exe
+        name: transgui-binary
+        path: ./transgui.exe
