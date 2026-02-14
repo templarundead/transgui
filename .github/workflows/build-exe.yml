@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
 
     - name: Install Lazarus
       run: |
@@ -27,7 +27,7 @@ jobs:
         lazbuild --build-mode=release --widgetset=win32 transgui.lpi
 
     - name: Upload Binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: windows-binary
         path: ./*.exe
