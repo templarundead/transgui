@@ -10,7 +10,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Add FPC to PATH
-      run: echo \"C:\\Program Files\\Lazarus\" >> $env:GITHUB_PATH
+      run: echo \"C:\ProgramData\chocolatey\bin\lazbuild.exe\" >> $env:GITHUB_PATH
 
     - name: Install lazarus
       run: |
