@@ -9,12 +9,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Add FPC to PATH
-      run: echo \"C:\ProgramData\chocolatey\bin\lazbuild.exe\" >> $env:GITHUB_PATH
-
     - name: Install lazarus
       run: |
         choco install lazarus -y
+
+    - name: Add FPC to PATH
+      run: echo "C:\ProgramData\chocolatey\bin" >> $env:GITHUB_PATH
 
     - name: Compile transGUI
       run: |
