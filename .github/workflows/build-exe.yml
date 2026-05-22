@@ -11,10 +11,17 @@ jobs:
 
     - name: Install lazarus
       run: |
-        choco install lazarus -y
+        choco install lazarus -y --force
 
-    - name: Add FPC to PATH
-      run: echo "C:\ProgramData\chocolatey\bin" >> $env:GITHUB_PATH
+    - name: Find and add lazbuild to PATH
+      run: |
+        $lazbuildPath = Get-ChildItem -Recurse -Filter "lazbuild.exe" -Path "C:\ProgramData\chocolatey\lib\lazarus" 2>$null | Select-Object -First 1 -ExpandProperty DirectoryName
+        if ($lazbuildPath) {
+          echo "$lazbuildPath" >> $env:GITHUB_PATH
+        } else {
+          echo "lazbuild.exe not found"
+          exit 1
+        }
 
     - name: Compile transGUI
       run: |
