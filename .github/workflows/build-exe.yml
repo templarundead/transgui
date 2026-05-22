@@ -15,9 +15,30 @@ jobs:
 
     - name: Find and add lazbuild to PATH
       run: |
-        $lazbuildPath = Get-ChildItem -Recurse -Filter "lazbuild.exe" -Path "C:\ProgramData\chocolatey\lib\lazarus" 2>$null | Select-Object -First 1 -ExpandProperty DirectoryName
+        # Try multiple possible locations for lazbuild.exe
+        $possiblePaths = @(
+          "C:\ProgramData\chocolatey\lib\lazarus",
+          "C:\Program Files (x86)\Lazarus",
+          "C:\Program Files\Lazarus",
+          "C:\users\runneradmin\AppData\Local\Programs\Lazarus"
+        )
+        
+        $lazbuildPath = $null
+        foreach ($path in $possiblePaths) {
+          if (Test-Path $path) {
+            $lazbuildPath = Get-ChildItem -Recurse -Filter "lazbuild.exe" -Path $path 2>$null | Select-Object -First 1 -ExpandProperty DirectoryName
+            if ($lazbuildPath) { break }
+          }
+        }
+        
+        if (-not $lazbuildPath) {
+          # Search entire C drive as fallback
+          $lazbuildPath = Get-ChildItem -Recurse -Filter "lazbuild.exe" -Path "C:\" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty DirectoryName
+        }
+        
         if ($lazbuildPath) {
           echo "$lazbuildPath" >> $env:GITHUB_PATH
+          Write-Host "Found lazbuild.exe at: $lazbuildPath"
         } else {
           echo "lazbuild.exe not found"
           exit 1
